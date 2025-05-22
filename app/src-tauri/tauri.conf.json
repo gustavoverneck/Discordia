@@ -1,0 +1,33 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "discordia",
+  "version": "0.1.0",
+  "identifier": "com.discordia.dev",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "yarn cross-env BROWSER=none yarn start",
+    "beforeBuildCommand": "yarn build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Discordia",
+        "width": 1000,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/discordia_logo_clean.png"
+    ]
+  }
+}

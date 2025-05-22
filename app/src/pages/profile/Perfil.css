@@ -1,0 +1,86 @@
+.profile-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.profile-card {
+    background: var(--color-background, #fff);
+    padding: 2rem;
+    border-radius: 12px;
+    min-width: 320px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    position: relative;
+    animation: profile-fade-in 0.2s;
+    color: var(--color-text, #222);
+}
+
+@keyframes profile-fade-in {
+    from { opacity: 0; transform: scale(0.97);}
+    to { opacity: 1; transform: scale(1);}
+}
+
+.profile-card h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+    color: var(--color-text, #222);
+}
+
+.profile-card label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--color-text, #222);
+    font-weight: 500;
+}
+
+.profile-card input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 6px;
+    font-size: 1rem;
+    background: var(--color-input-bg, #f8fafc);
+    color: var(--color-text, #222);
+}
+
+.profile-card button {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.6rem 0;
+    border: none;
+    border-radius: 6px;
+    background: var(--color-primary, #4267b2);
+    color: var(--color-button-text, #fff);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.profile-card button:hover {
+    background: var(--color-primary-dark, #3a5ca8);
+}
+
+.profile-card .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    color: var(--color-text, #222);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.profile-card .close-btn:hover {
+    color: var(--color-primary, #4267b2);
+}

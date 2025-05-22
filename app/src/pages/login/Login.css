@@ -1,0 +1,75 @@
+
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--color-background);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+}
+
+.login-card h2 {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.login-card .subtext {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.login-card label {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.login-card input {
+  margin-top: 0.25rem;
+}
+
+.login-card button {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.register-section {
+  margin-top: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.register-section a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: text-decoration 0.2s;
+}
+
+.register-section a:hover {
+  text-decoration: underline;
+}
+
+/* Estilo para register-link */
+.register-link {
+  color: var(--color-primary) !important;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: text-decoration 0.2s, color 0.2s;
+}
+
+.register-link:hover {
+  text-decoration: underline;
+  color: var(--color-primary-dark, #3a5ca8) !important;
+}
