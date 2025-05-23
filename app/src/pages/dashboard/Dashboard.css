@@ -391,19 +391,31 @@
   user-select: text; /* Permite selecionar o texto da mensagem */
 }
 
-.no-messages { color: var(--color-text-muted); text-align: center; margin-top: 20px; }
+/* Mensagem para quando não há mensagens no canal */
+.no-messages {
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 20px;
+  padding: 20px;
+  flex-grow: 1; /* Para centralizar verticalmente se for o único conteúdo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
+/* Estilos para a área de input de chat (já fornecidos anteriormente, mas para referência) */
 .chat-input-area {
   padding: 0 16px 20px 16px;
-  background-color: var(--color-surface);
+  background-color: var(--color-surface); /* Fundo da área de input */
   flex-shrink: 0;
 }
 .chat-input-area_form {
   background-color: var(--color-background); /* Input area mais escura */
   border-radius: 8px;
-  padding: 0;
+  padding: 0; /* O input e botão terão padding */
   display: flex;
   align-items: center;
+  /* border: 1px solid var(--color-border); /* Opcional: borda sutil */
 }
 .chat-input-area_form input[type="text"] {
   flex-grow: 1;
@@ -412,18 +424,24 @@
   background-color: transparent;
   color: var(--color-text);
   outline: none;
-  font-size: 0.95em;
+  font-size: 1rem; /* Tamanho de fonte do input */
 }
-.chat-input-area_form input[type="text"]::placeholder { color: var(--color-text-muted); }
-.chat-input-area_form button {
+.chat-input-area_form input[type="text"]::placeholder {
+  color: var(--color-text-muted);
+}
+.chat-input-area_form button[type="submit"] {
   padding: 8px 16px;
-  background-color: transparent;
+  background-color: transparent; /* Ou uma cor de acento */
   color: var(--color-text-muted);
   border: none;
   cursor: pointer;
   font-weight: 500;
+  margin-right: 4px; /* Pequeno espaço se o botão tiver um ícone */
 }
-.chat-input-area_form button:hover { color: var(--color-text); }
+.chat-input-area_form button[type="submit"]:hover {
+  color: var(--color-text);
+}
+
 
 /* Menu de Contexto do Servidor */
 .server-context-menu {

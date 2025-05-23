@@ -29,13 +29,15 @@ export default function DashboardLayout({ section }) {
   
   const [newMessage, setNewMessage] = useState('');
   const socketRef = useRef(null);
+  const chatContainerRef = useRef(null); // Ref para o container de mensagens do chat
 
   const [selectedServerId, setSelectedServerId] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [view, setView] = useState('home');
-  const [chatError, setChatError] = useState(''); 
+
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = useState(false);
   const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] = useState(false);
+  const [chatError, setChatError] = useState('');
 
   const [contextMenu, setContextMenu] = useState({
     visible: false, x: 0, y: 0, serverId: null, serverName: '',
@@ -175,24 +177,14 @@ export default function DashboardLayout({ section }) {
     if (view === 'channel' && selectedChannelId) {
       const currentChannel = channels.find(c => c.ID === selectedChannelId);
       if (currentChannel && currentChannel.ChannelType === 'TEXT') {
-        fetchMessagesForChannel(selectedChannelId); // Busca histórico
-
-        // Lógica WebSocket
+        fetchMessagesForChannel(selectedChannelId);
         const token = localStorage.getItem('authToken');
-        if (!token) {
-            console.error("[WebSocket] Token não encontrado para conexão.");
-            return;
-        }
-
-        // Ajuste a URL do WebSocket conforme seu backend (ex: pode incluir o token como query param)
-        const wsUrl = `ws://localhost:5000/ws/chat`; // Endpoint genérico, backend precisará de lógica de subscrição
-        console.log(`[WebSocket] Tentando conectar a: ${wsUrl} para o canal ${selectedChannelId}`);
+        if (!token) { console.error("[WebSocket] Token não encontrado."); return; }
         
-        if (socketRef.current) socketRef.current.close(); // Fecha conexão anterior
+        const wsUrl = `ws://localhost:5000/ws/chat`;
+        if (socketRef.current) socketRef.current.close();
         socketRef.current = new WebSocket(wsUrl);
-
         socketRef.current.onopen = () => {
-          console.log(`[WebSocket] Conectado ao servidor. Inscrevendo-se no canal ${selectedChannelId}`);
           socketRef.current.send(JSON.stringify({
             type: 'join_channel',
             payload: { channelId: selectedChannelId, token: token }
@@ -201,9 +193,6 @@ export default function DashboardLayout({ section }) {
         socketRef.current.onmessage = (event) => {
           try {
             const messageData = JSON.parse(event.data);
-            console.log('[WebSocket] Mensagem recebida:', messageData);
-            // Assumindo que o backend envia a mensagem com 'channelId'
-            // e que o formato de messageData.author e messageData.content está correto.
             if (messageData.channelId === selectedChannelId) {
               setMessages((prevMessages) => [...prevMessages, messageData]);
             }
@@ -212,18 +201,16 @@ export default function DashboardLayout({ section }) {
         socketRef.current.onerror = (error) => console.error('[WebSocket] Erro:', error);
         socketRef.current.onclose = (event) => {
           console.log(`[WebSocket] Desconectado. Code: ${event.code}, Reason: ${event.reason}`);
-          socketRef.current = null; // Limpa a referência
+          socketRef.current = null;
         };
-        
-        return () => { // Função de limpeza do useEffect
+        return () => {
           if (socketRef.current) {
-            console.log(`[WebSocket] Saindo do canal ${selectedChannelId}, fechando socket.`);
             socketRef.current.send(JSON.stringify({ type: 'leave_channel', payload: { channelId: selectedChannelId } }));
             socketRef.current.close();
             socketRef.current = null;
           }
         };
-      } else { // Se não for view de canal de texto ou não houver canal selecionado
+      } else {
         if (socketRef.current) {
           socketRef.current.close();
           socketRef.current = null;
@@ -231,7 +218,15 @@ export default function DashboardLayout({ section }) {
         setMessages([]);
       }
     }
-  }, [view, selectedChannelId, channels, fetchMessagesForChannel]); // fetchMessagesForChannel é useCallback
+  }, [view, selectedChannelId, channels, fetchMessagesForChannel]);
+
+  // useEffect para rolar para o final do chat
+  useEffect(() => {
+    if (view === 'channel' && selectedChannelId && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, selectedChannelId, view]); // Roda quando as mensagens, canal ou view mudam
+
 
   const navigateToView = (newView, pathSuffix = '') => {
     setView(newView);
@@ -268,9 +263,7 @@ export default function DashboardLayout({ section }) {
         setSelectedChannelId(channelId);
       } else if (channel.ChannelType === 'VOICE') {
         alert(`Canal de voz: ${channel.ChannelName} (funcionalidade de voz não implementada)`);
-        // Poderia manter a view 'server' e apenas destacar o canal de voz selecionado
-        // setView('server'); 
-        setSelectedChannelId(channelId); // Ainda seleciona para destacar na UI
+        setSelectedChannelId(channelId);
         setMessages([]);
       }
     }
@@ -309,54 +302,25 @@ export default function DashboardLayout({ section }) {
   };
 
   const handleSendMessage = async (event) => {
-    event.preventDefault(); // Impede o comportamento padrão do formulário
-    console.log('[handleSendMessage] Formulário submetido.'); // LOG A
-    setChatError(''); // Limpa erros anteriores do chat
-
-    if (!newMessage.trim()) {
-      console.warn('[handleSendMessage] Mensagem está vazia ou contém apenas espaços. Não enviando.'); // LOG B1
-      // Opcional: setChatError("A mensagem não pode estar vazia.");
+    event.preventDefault();
+    setChatError('');
+    if (!newMessage.trim()) { return; }
+    if (!selectedChannelId) { setChatError("Nenhum canal selecionado."); return; }
+    if (!socketRef.current) { setChatError('Não conectado ao chat.'); return; }
+    if (socketRef.current.readyState !== WebSocket.OPEN) {
+      setChatError(`Conexão com o chat não está pronta (Estado: ${socketRef.current.readyState}).`);
       return;
     }
-    if (!selectedChannelId) {
-      console.warn('[handleSendMessage] Nenhum canal selecionado para enviar mensagem.'); // LOG B2
-      setChatError("Nenhum canal selecionado para enviar a mensagem.");
-      return;
-    }
-
-    console.log('[handleSendMessage] Verificando socketRef.current:', socketRef.current); // LOG C
-    if (!socketRef.current) {
-      console.warn('[handleSendMessage] socketRef.current é nulo. Conexão WebSocket não existe.'); // LOG D1
-      setChatError('Não conectado ao chat. Por favor, tente selecionar o canal novamente.');
-      return;
-    }
-
-    console.log('[handleSendMessage] Estado do socket (readyState):', socketRef.current.readyState, '(0:CONNECTING, 1:OPEN, 2:CLOSING, 3:CLOSED)'); // LOG E
-    if (socketRef.current.readyState !== WebSocket.OPEN) { // WebSocket.OPEN é 1
-      console.warn(`[handleSendMessage] Conexão WebSocket não está ABERTA (OPEN). Estado atual: ${socketRef.current.readyState}`); // LOG D2
-      setChatError(`Não é possível enviar mensagem. Conexão com o chat não está pronta (Estado: ${socketRef.current.readyState}).`);
-      return;
-    }
-
     const messagePayload = {
-      type: 'new_message', // Para o backend identificar a ação
-      payload: {
-        channelId: selectedChannelId,
-        content: newMessage.trim(),
-        // O backend deverá associar o authorId com base no token da conexão WebSocket
-      }
+      type: 'new_message',
+      payload: { channelId: selectedChannelId, content: newMessage.trim() }
     };
-
-    console.log('[handleSendMessage] Preparando para enviar via WebSocket:', messagePayload); // LOG F
-
     try {
       socketRef.current.send(JSON.stringify(messagePayload));
-      console.log('[handleSendMessage] Mensagem ENVIADA via WebSocket com sucesso.'); // LOG G
-      setNewMessage(''); // Limpa o input APÓS o envio (ou tentativa de envio bem-sucedida)
+      setNewMessage('');
     } catch (sendError) {
-      console.error('[handleSendMessage] ERRO ao tentar enviar mensagem via WebSocket:', sendError); // LOG H
-      setChatError('Falha ao enviar a mensagem. Verifique sua conexão ou tente novamente.');
-      // Não limpa newMessage aqui para que o usuário não perca o que digitou.
+      console.error('[handleSendMessage] ERRO ao tentar enviar mensagem via WebSocket:', sendError);
+      setChatError('Falha ao enviar a mensagem.');
     }
   };
 
@@ -425,33 +389,24 @@ export default function DashboardLayout({ section }) {
                      <header className="chat-header">
                         <h3> {channels.find(c => c.ID === selectedChannelId)?.ChannelName} </h3>
                      </header>
-                     <section className="chat-messages">
+                     <section className="chat-messages" ref={chatContainerRef}>
                         {messagesLoading && <p className="loading-text">Carregando mensagens...</p>}
                         {messagesError && <p className="error-text">{messagesError}</p>}
                         {!messagesLoading && !messagesError && Array.isArray(messages) && messages.length > 0 ? (
-                            messages.map((msg) => ( // msg é o MessageResponse do backend
+                            messages.map((msg) => (
                             <div key={msg.id} className="message">
                                 <div className="message-author-avatar">
-                                   {msg.author && msg.author.avatarUrl ? (
-                                      <img
-                                        src={
-                                          msg.author.avatarUrl.startsWith('http')
-                                            ? msg.author.avatarUrl
-                                            : `http://localhost:5000${msg.author.avatarUrl}` // Adiciona base URL se for caminho relativo
-                                        }
-                                        alt={msg.author.username} // Alt text descritivo
-                                      />
-                                    ) : (
-                                      <div className="avatar-placeholder">
-                                        {msg.author && msg.author.username
-                                          ? msg.author.username.charAt(0).toUpperCase()
-                                          : '?'}
-                                      </div>
-                                    )}
+                                {msg.author && msg.author.avatarUrl ? (
+                                    <img src={msg.author.avatarUrl.startsWith('http') ? msg.author.avatarUrl : `http://localhost:5000${msg.author.avatarUrl}`} alt={msg.author.username} />
+                                ) : (
+                                    <div className="avatar-placeholder">
+                                    {msg.author && msg.author.username ? msg.author.username.charAt(0).toUpperCase() : '?'}
+                                    </div>
+                                )}
                                 </div>
                                 <div className="message-content">
                                 <div className="message-header">
-                                    <strong className="message-author-name">{msg.author.username}</strong>
+                                    <strong className="message-author-name">{msg.author?.username || 'Usuário Desconhecido'}</strong>
                                     <span className="message-timestamp">
                                     {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
@@ -470,10 +425,14 @@ export default function DashboardLayout({ section }) {
                               type="text" 
                               placeholder={`Conversar em #${channels.find(c => c.ID === selectedChannelId)?.ChannelName || 'canal'}`} 
                               value={newMessage}
-                              onChange={(e) => setNewMessage(e.target.value)}
+                              onChange={(e) => {
+                                setNewMessage(e.target.value);
+                                if (chatError) setChatError('');
+                              }}
                             />
                             <button type="submit">Enviar</button>
                           </form>
+                          {chatError && <p className="error-message" style={{textAlign: 'center', padding: '5px 16px 0 16px', fontSize: '0.8em'}}>{chatError}</p>}
                         </footer>
                 </div>
             )}

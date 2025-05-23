@@ -17,7 +17,7 @@ export default function RegisterScreen() {
 
         if (password !== confirmPassword) {
             console.log('[DEBUG] Passwords do not match');
-            setError('Passwords do not match.');
+            setError('As senhas não coincidem.');
             return;
         }
 
@@ -35,18 +35,18 @@ export default function RegisterScreen() {
             });
 
             console.log('[DEBUG] Fetch response status:', response.status, response.statusText);
-            const data = await response.json(); // Try to parse even if !response.ok to get error msg
+            const data = await response.json();
             console.log('[DEBUG] Response data:', data);
 
             if (!response.ok) {
                 console.log('[DEBUG] Response not OK (backend error)');
-                setError(data.error || 'Registration error. Please try again.');
+                setError(data.error || 'Erro no registro. Por favor, tente novamente.');
                 setLoading(false);
                 return;
             }
 
             console.log('[DEBUG] Registration successful on frontend:', data);
-            alert(data.message || `User ${data.user?.username} registered successfully!`);
+            alert(data.message || `Usuário ${data.user?.username} registrado com sucesso!`);
 
             if (data.token) {
                 localStorage.setItem('authToken', data.token);
@@ -58,11 +58,11 @@ export default function RegisterScreen() {
 
             setLoading(false);
             console.log('[DEBUG] Redirecting to /dashboard');
-            window.location.href = '/dashboard'; // Ideally use React Router
+            window.location.href = '/dashboard';
 
         } catch (err) {
             console.error('[DEBUG] ERROR in handleRegister catch block:', err);
-            setError('Connection error or invalid server response. Please try again later.');
+            setError('Erro de conexão ou resposta inválida do servidor. Por favor, tente novamente mais tarde.');
             setLoading(false);
         }
     }
@@ -70,17 +70,17 @@ export default function RegisterScreen() {
     return (
         <div className="login-container">
             <div className="card login-card">
-                <h2>Create your account on Discordia</h2>
-                <p className="subtext">Fill in the details to register</p>
+                <h2>Crie sua conta na Discordia</h2>
+                <p className="subtext">Preencha os detalhes para se registrar</p>
                 {error && <p className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</p>}
                 <form onSubmit={handleRegister}>
                     <label>
-                        Username
+                        Nome de usuário
                         <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Minimum 3 characters"
+                            placeholder="Mínimo de 3 caracteres"
                             required
                             minLength="3"
                             maxLength="32"
@@ -93,47 +93,47 @@ export default function RegisterScreen() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your email"
+                            placeholder="Digite seu email"
                             required
                             disabled={loading}
                         />
                     </label>
                     <label>
-                        Password
+                        Senha
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Minimum 6 characters"
+                            placeholder="Mínimo de 6 caracteres"
                             required
                             minLength="6"
                             disabled={loading}
                         />
                     </label>
                     <label>
-                        Confirm Password
+                        Confirmar Senha
                         <input
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm your password"
+                            placeholder="Confirme sua senha"
                             required
                             disabled={loading}
                         />
                     </label>
                     <button type="submit" disabled={loading}>
-                        {loading ? 'Registering...' : 'Register'}
+                        {loading ? 'Registrando...' : 'Registrar'}
                     </button>
                 </form>
                 <div className="register-section">
                     <p>
-                        Already have an account?{' '}
+                        Já possui uma conta?{' '}
                         <span
                             className="register-link"
                             style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
                             onClick={() => { if (!loading) window.location.href = '/login'; }}
                         >
-                            Login
+                            Entrar
                         </span>
                     </p>
                 </div>

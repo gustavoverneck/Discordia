@@ -1,5 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import './Profile.css';
+
+// Função auxiliar para formatar a data
+function formatDateDisplay(dateString) {
+    if (!dateString) {
+        console.log('[formatDateDisplay] dateString is empty or null. Returning "Data not available".');
+        return 'Data not available';
+    }
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        console.warn('[formatDateDisplay] Attempt to format invalid date:', dateString, '. Returning "Invalid date".');
+        return 'Invalid date';
+    }
+    const formatted = date.toLocaleDateString('pt-BR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+    console.log(`[formatDateDisplay] Date formatted for "${dateString}": "${formatted}"`);
+    return formatted;
+}
 
 // Removida a prop 'onClose', pois não é mais um modal
 export function Profile() {
@@ -142,6 +162,7 @@ export function Profile() {
                         />
                     </div>
                     <div className="form-actions">
+                        <p><strong>Membro desde:</strong> {formatDateDisplay(profile.createdAt)}</p>
                         <button type="submit" disabled={isSaving}>
                             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                         </button>
@@ -152,34 +173,12 @@ export function Profile() {
                 </form>
             ) : (
                 <div className="profile-view-mode">
-                    <p><strong>ID:</strong> {profile.id}</p>
                     <p><strong>Usuário:</strong> {profile.username}</p>
                     <p><strong>Email:</strong> {profile.email}</p>
-                    <p><strong>Status:</strong> {profile.status || 'N/A'}</p>
-                    {profile.avatarURL && (
-                        <div style={{margin: '0.8rem 0'}}>
-                            <strong style={{display: 'block', marginBottom:'4px'}}>Avatar:</strong> 
-                            <img src={profile.avatarURL} alt="Avatar" style={{width: '80px', height: '80px', borderRadius: '50%'}} />
-                        </div>
-                    )}
-                    <p><strong>Membro desde:</strong> {formatDateDisplay(profile.CreatedAt)}</p>
-                    <div className="form-actions">
-                       <button onClick={handleEditToggle} className="edit-profile-btn">Editar Perfil</button>
-                    </div>
+                    <p><strong>Membro desde:</strong> {formatDateDisplay(profile.createdAt)}</p>
+                    <button type="button" onClick={handleEditToggle}>Editar Perfil</button>
                 </div>
             )}
         </div>
     );
 }
-
-// Função auxiliar para formatar a data (mantenha ou melhore)
-const formatDateDisplay = (dateString) => {
-    if (!dateString) return 'Data não disponível';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Data inválida';
-    return date.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
-// Não precisa mais dos estilos de modal aqui se eles foram movidos para Perfil.css
-// e adaptados. A exportação default também pode ser removida se você importa
-// como { Profile }
