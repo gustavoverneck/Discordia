@@ -1,0 +1,209 @@
+/* CreateServerModal.css */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    padding: 20px;
+    animation: fadeInOverlay 0.2s ease-out;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-card.create-server-card {
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: 24px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+    position: relative;
+    animation: fadeInModalCard 0.2s ease-out 0.05s backwards;
+    border: 1px solid var(--color-border);
+}
+
+@keyframes fadeInModalCard {
+    from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-card h2 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: var(--color-text);
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+.modal-subtext {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.875em;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 1.75rem;
+    font-weight: 300;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 5px;
+    line-height: 1;
+}
+
+.modal-close-btn:hover {
+    color: var(--color-text);
+}
+
+.modal-feedback {
+    padding: 10px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.9em;
+}
+.modal-feedback.error {
+    color: var(--color-error);
+    background-color: rgba(240, 71, 71, 0.1);
+}
+/* .modal-feedback.success { ... } se precisar */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    line-height: 1.33333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 1em;
+    background: var(--color-background);
+    color: var(--color-text);
+    transition: border-color 0.2s;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="url"]:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary), 0 0 0 2px var(--color-secondary);
+}
+
+.form-hint {
+        font-size: 0.75em;
+        color: var(--color-text-muted);
+        margin-top: 4px;
+        display: block;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--color-border);
+}
+
+.modal-actions .button-primary,
+.modal-actions .button-secondary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 3px;
+    font-weight: 500;
+    font-size: 0.875em;
+    cursor: pointer;
+    transition: background-color 0.17s ease, color .17s ease, opacity 0.17s ease;
+}
+
+.modal-actions .button-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text);
+}
+.modal-actions .button-primary:hover {
+    background-color: var(--color-primary-hover);
+}
+.modal-actions .button-primary:disabled {
+    background-color: var(--color-border);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.modal-actions .button-secondary {
+    background-color: transparent;
+    color: var(--color-text);
+}
+.modal-actions .button-secondary:hover {
+    text-decoration: underline;
+}
+.modal-actions .button-secondary:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+}
+
+.file-input {
+  color: #b9bbbe; /* Cor do texto "Nenhum arquivo selecionado" */
+  padding: 8px 0; /* Ajuste o padding conforme necessário */
+}
+
+.file-input::file-selector-button { /* Estiliza o botão nativo do input file */
+  padding: 8px 12px;
+  margin-right: 12px;
+  border: 1px solid #202225; /* var(--color-input-bg); */
+  border-radius: 3px;
+  background-color: #4f545c; /* Cor de botão secundário */
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.file-input::file-selector-button:hover {
+  background-color: #5c616a;
+}
+
+.image-preview-container {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.image-preview-container p {
+  font-size: 0.8em;
+  color: #b9bbbe;
+  margin-bottom: 5px;
+}
+
+.image-preview {
+  max-width: 100px;
+  max-height: 100px;
+  border-radius: 50%; /* Para ícones de servidor circulares */
+  border: 2px solid #202225; /* var(--color-input-bg); */
+  object-fit: cover;
+}

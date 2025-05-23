@@ -2,14 +2,17 @@ package handlers
 
 import (
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/gustavoverneck/discordia/server/models" // Certifique-se que este caminho está correto
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -315,15 +318,6 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// Você pode adicionar outros handlers (ServerHandler, ChannelHandler, etc.) aqui
-// ou em arquivos separados dentro do pacote `handlers`.
-// Exemplo:
-// type ServerHandler struct {
-//     DB *gorm.DB
-// }
-// func NewServerHandler(db *gorm.DB) *ServerHandler { /* ... */ }
-// func (sh *ServerHandler) CreateServer(c *gin.Context) { /* ... */ }
-
 type UpdateProfileRequest struct {
 	Username string `json:"username" binding:"omitempty,min=3,max=32"` // omitempty permite não enviar se não quiser mudar
 	Email    string `json:"email" binding:"omitempty,email"`
@@ -407,5 +401,215 @@ func (uh *UserHandler) UpdateProfile(c *gin.Context) {
 		"status":    user.Status,
 		"CreatedAt": user.CreatedAt,
 		"UpdatedAt": user.UpdatedAt,
+	})
+}
+
+func (uh *UserHandler) ListUserServers(c *gin.Context) {
+	rawUserID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+	userID, _ := rawUserID.(uint)
+
+	var userWithServers models.User
+	// Usamos Preload para carregar os MemberServers associados.
+	// GORM cuidará da consulta na tabela de junção server_members.
+	// Certifique-se que o seu modelo Server tenha os campos que você quer retornar (ID, ServerName, IconURL).
+	// O gorm.Model já inclui ID. ServerName e IconURL devem estar definidos em models.Server.
+	err := uh.DB.Preload("MemberServers").First(&userWithServers, userID).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
+			return
+		}
+		log.Printf("Erro ao buscar servidores do usuário %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar servidores do usuário"})
+		return
+	}
+
+	// Opcional: Criar um DTO (Data Transfer Object) para formatar a resposta,
+	// para não expor todos os campos do modelo GORM ou para customizar a estrutura.
+	// Por simplicidade aqui, vamos retornar os MemberServers diretamente se eles já
+	// tiverem uma estrutura adequada para o frontend.
+	// Se MemberServers contiver dados sensíveis ou desnecessários, mapeie para um DTO.
+
+	// Exemplo de mapeamento para um DTO mais simples, se necessário:
+	type ServerResponse struct {
+		ID         uint   `json:"id"`
+		ServerName string `json:"name"`
+		IconURL    string `json:"iconUrl,omitempty"`
+	}
+
+	var serverResponses []ServerResponse
+	for _, server := range userWithServers.MemberServers {
+		serverResponses = append(serverResponses, ServerResponse{
+			ID:         server.ID,
+			ServerName: server.ServerName,
+			IconURL:    server.IconURL, // Certifique-se que seu models.Server tem IconURL
+		})
+	}
+
+	c.JSON(http.StatusOK, serverResponses)
+}
+
+func (uh *UserHandler) CreateServer(c *gin.Context) {
+	rawUserID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+	userID, _ := rawUserID.(uint)
+
+	serverName := c.PostForm("serverName")
+	if serverName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome do servidor é obrigatório"})
+		return
+	}
+	if len(serverName) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome do servidor muito longo (máximo 100 caracteres)"})
+		return
+	}
+
+	var iconFileLocationInDB string
+
+	fileHeader, err := c.FormFile("iconFile")
+	if err == nil && fileHeader != nil {
+		file, openErr := fileHeader.Open()
+		if openErr != nil {
+			log.Printf("Erro ao abrir arquivo de upload: %v", openErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar o ícone."})
+			return
+		}
+		defer file.Close()
+
+		// Validações de tamanho e tipo (como no exemplo anterior)
+		if fileHeader.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo de ícone muito grande (máx 5MB)."})
+			return
+		}
+		buffer := make([]byte, 512)
+		_, readErr := file.Read(buffer)
+		if readErr != nil && readErr != io.EOF {
+			log.Printf("Erro ao ler buffer do arquivo: %v", readErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar o tipo do ícone."})
+			return
+		}
+		_, seekErr := file.Seek(0, io.SeekStart)
+		if seekErr != nil {
+			log.Printf("Erro ao fazer seek no arquivo: %v", seekErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar o ícone."})
+			return
+		}
+		contentType := http.DetectContentType(buffer)
+		if !strings.HasPrefix(contentType, "image/") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tipo de arquivo inválido. Apenas imagens são permitidas."})
+			return
+		}
+
+		ext := filepath.Ext(fileHeader.Filename)
+		if ext == "" {
+			switch contentType {
+			case "image/jpeg":
+				ext = ".jpg"
+			case "image/png":
+				ext = ".png"
+			case "image/gif":
+				ext = ".gif"
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de imagem não suportado para extensão automática."})
+				return
+			}
+		}
+		uniqueFilename := uuid.New().String() + ext
+		uploadsDir := "./uploads/server_icons"
+		if _, statErr := os.Stat(uploadsDir); os.IsNotExist(statErr) {
+			os.MkdirAll(uploadsDir, os.ModePerm)
+		}
+		filePath := filepath.Join(uploadsDir, uniqueFilename)
+
+		out, createErr := os.Create(filePath)
+		if createErr != nil {
+			log.Printf("Erro ao criar arquivo no servidor para %s: %v", filePath, createErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao salvar o ícone do servidor."})
+			return
+		}
+		defer out.Close()
+		_, copyErr := io.Copy(out, file)
+		if copyErr != nil {
+			log.Printf("Erro ao copiar conteúdo do arquivo para %s: %v", filePath, copyErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao armazenar o ícone do servidor."})
+			return
+		}
+		iconFileLocationInDB = "/static/server_icons/" + uniqueFilename
+		log.Printf("Ícone salvo em: %s, URL relativa para DB: %s", filePath, iconFileLocationInDB)
+
+	} else if err != nil && !errors.Is(err, http.ErrMissingFile) {
+		log.Printf("Erro ao processar FormFile 'iconFile': %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar o arquivo de ícone."})
+		return
+	}
+
+	newServer := models.Server{
+		OwnerID:    userID,
+		ServerName: serverName,
+		IconURL:    iconFileLocationInDB,
+	}
+
+	tx := uh.DB.Begin()
+	if tx.Error != nil {
+		log.Printf("Erro ao iniciar transação para criar servidor: %v", tx.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar servidor."})
+		return
+	}
+
+	if err := tx.Create(&newServer).Error; err != nil {
+		tx.Rollback()
+		log.Printf("Erro ao salvar novo servidor no DB: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao registrar o novo servidor."})
+		return
+	}
+
+	// ---- INÍCIO DA MUDANÇA PARA ADICIONAR MEMBRO ----
+	// Adicionar o criador (owner) como membro do servidor usando a associação many2many do GORM.
+	// Precisamos de uma instância de models.User (pode ser apenas com o ID) para a associação.
+	ownerUser := models.User{}
+	ownerUser.ID = userID // O GORM usa o ID para criar a entrada na tabela de junção.
+
+	// Associa o ownerUser à lista de Members do newServer.
+	// GORM irá inserir um registro na tabela 'server_members' (user_id, server_id).
+	if err := tx.Model(&newServer).Association("Members").Append(&ownerUser); err != nil {
+		tx.Rollback()
+		log.Printf("Erro ao associar owner (%d) como membro do servidor (%d): %v", userID, newServer.ID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao configurar proprietário como membro do servidor."})
+		return
+	}
+	// ---- FIM DA MUDANÇA PARA ADICIONAR MEMBRO ----
+
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("Erro ao commitar transação de criar servidor: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro final ao criar servidor."})
+		return
+	}
+
+	// Para retornar o servidor com o Owner populado (se o frontend precisar)
+	// Você pode fazer um Preload aqui antes de enviar a resposta.
+	// No entanto, para a resposta de criação, geralmente apenas os dados do servidor são suficientes.
+	// Se o frontend precisar do objeto Owner completo, considere:
+	// var serverForResponse models.Server
+	// if err := uh.DB.Preload("Owner").First(&serverForResponse, newServer.ID).Error; err == nil {
+	//     // use serverForResponse para o JSON
+	// } else {
+	//     // use newServer (sem o Owner preenchido) ou trate o erro
+	// }
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":        newServer.ID,
+		"name":      newServer.ServerName,
+		"iconUrl":   newServer.IconURL,
+		"ownerId":   newServer.OwnerID,
+		"createdAt": newServer.CreatedAt,
+		// "membersCount": 1, // Opcional: se quiser retornar contagem inicial de membros
 	})
 }

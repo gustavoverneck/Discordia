@@ -1,102 +1,411 @@
-:root {
-  --radius: 12px;
-  --spacing: 8px;
+/* Dashboard.css */
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 .dashboard {
   display: flex;
   height: 100vh;
   width: 100vw;
-  background-color: var(--color-background);
+  background-color: var(--color-surface); /* Fundo principal da área de conteúdo */
   overflow: hidden;
 }
 
+/* --- Barra Lateral Principal (Servidores e Utilidades) --- */
 .sidebar {
   width: 72px;
-  background-color: var(--color-surface);
+  background-color: var(--color-background); /* Fundo mais escuro para a barra de servidores */
   padding-top: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
   overflow-y: auto;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.08);
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border) var(--color-surface);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
-
 .sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-.sidebar::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius);
-}
-
-.main-content {
-  flex-grow: 1;
-  display: flex;
-  overflow: hidden;
-  background-color: var(--color-background);
+  display: none;
 }
 
 .discordia-home-icon,
 .server-icon {
   width: 48px;
   height: 48px;
-  margin-bottom: var(--spacing);
-  background-color: var(--color-primary);
-  background-color: var(--color-primary-hover);
-  color: var(--color-text);
+  background-color: var(--color-surface); /* Fundo dos ícones antes do hover */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: box-shadow 0.2s, background 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  margin-bottom: 8px;
   cursor: pointer;
-  outline: none;
+  color: var(--color-primary); /* Cor do ícone Home */
+  font-weight: bold;
+  font-size: 1.2em;
+  transition: border-radius 0.15s ease-in-out, background-color 0.15s ease-in-out;
+  position: relative;
+  overflow: hidden;
 }
 
 .discordia-home-icon:hover,
-.server-icon:hover,
-.discordia-home-icon:focus-visible,
-.server-icon:focus-visible {
-  background-color: var(--color-primary-hover);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+.server-icon:hover {
+  border-radius: 16px;
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.server-icon.active {
+  border-radius: 16px;
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.server-icon.active::before {
+  content: '';
+  width: 4px;
+  height: 0;
+  background-color: var(--color-text); /* Indicador branco */
+  border-radius: 0 4px 4px 0;
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: height 0.2s ease;
+}
+.server-icon.active:not(:hover)::before { height: 20px; }
+.server-icon.active:hover::before { height: 40px; }
+
+.server-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sidebar-divider {
   width: 32px;
-  border-color: var(--color-border);
-  margin: var(--spacing) 0;
+  height: 2px;
+  background-color: var(--color-border);
+  border: none;
+  border-radius: 1px;
+  margin: 4px 0 8px 0;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.add-server-button { /* Usa o estilo do .server-icon mas com cor de sucesso */
+  width: 48px;
+  height: 48px;
+  background-color: var(--color-success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: border-radius 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+.add-server-button:hover {
+  border-radius: 16px;
+  background-color: color-mix(in srgb, var(--color-success) 80%, black 20%); /* Exemplo de escurecer */
 }
 
 .utility-buttons {
   margin-top: auto;
-  padding-bottom: var(--spacing);
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-bottom: 8px;
+  width: 100%;
 }
-
 
 .sidebar-button {
-  margin: 4px 0;
-  background-color: var(--color-primary);
-  color: var(--color-text);
+  background-color: var(--color-surface);
   border: none;
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  transition: background 0.2s, box-shadow 0.2s;
+  color: var(--color-text-muted);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  outline: none;
-  font-size: 1rem;
+  margin-bottom: 8px;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-radius 0.15s ease-in-out;
 }
 
-.sidebar-button:hover,
-.sidebar-button:focus-visible {
-  background-color: var(--color-primary-hover);
-  color: var(--color-background);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+.sidebar-button:hover {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  border-radius: 16px;
+}
+
+/* --- Área de Conteúdo Principal --- */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  background-color: var(--color-surface); /* Fundo da área principal */
+  overflow: hidden;
+}
+
+.content-view {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0;
+  color: var(--color-text); /* Cor de texto padrão para as views */
+}
+
+/* Estilos para wrappers de views específicas */
+.home-screen,
+.friends-list-wrapper,
+.profile-page-wrapper,
+.settings-view-wrapper {
+  padding: 20px 30px;
+}
+
+/* Layout quando um Servidor é Selecionado */
+.server-content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.channel-sidebar {
+  width: 240px;
+  background-color: var(--color-surface); /* Pode ser um pouco diferente do bg-primary se quiser */
+  filter: brightness(0.9); /* Exemplo para diferenciar sutilmente */
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.channel-sidebar h3 {
+  padding: 18px 16px;
+  margin: 0;
+  font-size: 0.95em;
+  color: var(--color-text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-elevation-low, 0 1px 0 rgba(0,0,0,0.1)); /* Fallback se shadow não definida */
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.channels-list-items {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+  flex-grow: 1;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.channels-list-items::-webkit-scrollbar { display: none; }
+
+.channel-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+.channel-item::before {
+  content: '#';
+  margin-right: 8px;
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+.channel-item:hover {
+  background-color: var(--color-primary-hover); /* Usando seu primary-hover para destaque */
+  opacity: 0.3; /* Ou uma opacidade para o primary hover */
+  color: var(--color-text);
+}
+.channel-item:hover::before { color: var(--color-text-muted); } /* Mantém o # um pouco mais sutil */
+.channel-item.active {
+  background-color: var(--color-primary); /* Usando seu primary para ativo */
+  opacity: 0.5;
+  color: var(--color-text);
+}
+.channel-item.active::before { color: var(--color-text); }
+
+.channel-placeholder {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 1.2em;
+  background-color: var(--color-surface);
+  padding: 20px;
+}
+
+/* Layout da View de Chat do Canal */
+.channel-chat-view {
+  background-color: var(--color-surface);
+}
+
+.chat-header {
+  padding: 0 16px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-elevation-low, 0 1px 0 rgba(0,0,0,0.1));
+}
+.chat-header h3::before { content: '# '; color: var(--color-text-muted); }
+.chat-header h3 { margin: 0; font-size: 1em; }
+
+.chat-messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px 16px;
+  color: var(--color-text);
+}
+.chat-messages::-webkit-scrollbar { width: 8px; }
+.chat-messages::-webkit-scrollbar-thumb { background-color: var(--color-background); border-radius: 4px; }
+.chat-messages::-webkit-scrollbar-track { background-color: var(--color-surface); filter: brightness(0.9); }
+
+
+.message {
+  padding: 8px 0px 2px 0px;
+  line-height: 1.4;
+  display: flex;
+}
+.message strong { color: var(--color-text); margin-right: 8px; font-weight: 500; }
+.message:hover { background-color: rgba(0,0,0,0.07); /* Um hover bem sutil no chat */ }
+
+.no-messages { color: var(--color-text-muted); text-align: center; margin-top: 20px; }
+
+.chat-input-area {
+  padding: 0 16px 20px 16px;
+  background-color: var(--color-surface);
+  flex-shrink: 0;
+}
+.chat-input-area_form {
+  background-color: var(--color-background); /* Input area mais escura */
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.chat-input-area_form input[type="text"] {
+  flex-grow: 1;
+  padding: 11px 10px 11px 16px;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text);
+  outline: none;
+  font-size: 0.95em;
+}
+.chat-input-area_form input[type="text"]::placeholder { color: var(--color-text-muted); }
+.chat-input-area_form button {
+  padding: 8px 16px;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+.chat-input-area_form button:hover { color: var(--color-text); }
+
+/* Menu de Contexto do Servidor */
+.server-context-menu {
+  position: absolute;
+  background-color: var(--color-background); /* Usando seu background para consistência */
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-elevation-high, 0 8px 16px rgba(0,0,0,0.24));
+  padding: 6px;
+  z-index: 1100;
+  min-width: 180px;
+}
+.server-context-menu ul { list-style: none; margin: 0; padding: 0; }
+.server-context-menu li {
+  padding: 8px 12px;
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.server-context-menu li:hover {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+.server-context-menu li.leave-option:hover { /* Usando sua cor de erro */
+  background-color: var(--color-error);
+  color: var(--color-text);
+}
+
+/* Estilo para mensagem de erro geral */
+.error-message {
+  color: var(--color-error);
+  background-color: rgba(240, 71, 71, 0.1); /* Usando sua cor de erro com opacidade */
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  text-align: left;
+}
+
+.channel-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px 0 16px; /* Ajustado para dar espaço ao botão */
+  /* Outros estilos de h3 já definidos podem ser mantidos */
+}
+
+.channel-sidebar-header h3 {
+    /* Seus estilos existentes */
+    flex-grow: 1; /* Para que o nome do servidor ocupe espaço */
+}
+
+.add-channel-button {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.5em; /* Tamanho do ícone '+' */
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+}
+.add-channel-button:hover {
+  color: var(--color-text-normal);
+}
+
+.channel-category {
+  padding: 12px 8px 4px 8px;
+  font-size: 0.75em; /* 12px */
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.channel-item .channel-icon {
+  margin-right: 6px;
+  color: var(--color-text-interactive); /* Mesma cor do # ou 🔊 */
+  font-weight: normal; /* Para não ser negrito como o nome do canal */
 }

@@ -22,7 +22,7 @@ type Server struct {
 	Owner       User   `gorm:"foreignKey:OwnerID"` // Relacionamento Belongs To User
 	ServerName  string `gorm:"type:varchar(255);not null"`
 	Description string
-	IconURL     string
+	IconURL     string    `json:"iconUrl,omitempty"`
 	Members     []*User   `gorm:"many2many:server_members;"` // Membros do servidor
 	Channels    []Channel `gorm:"foreignKey:ServerID"`       // Canais do servidor
 }

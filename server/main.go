@@ -35,9 +35,9 @@ func main() {
 
 	// 4. Instanciação dos Handlers
 	userHandler := handlers.NewUserHandler(gormDB)
-	// Exemplo para o futuro:
-	// serverHandler := handlers.NewServerHandler(gormDB)
-	// channelHandler := handlers.NewChannelHandler(gormDB)
+	channelHandler := handlers.NewChannelHandler(gormDB)
+
+	router.Static("/static", "./uploads")
 
 	// 5. Definição das Rotas Públicas
 	router.POST("/register", userHandler.Register) // Rota para registrar usuário
@@ -50,6 +50,15 @@ func main() {
 		protected.GET("/profile", userHandler.Profile)
 		protected.PUT("/profile", userHandler.UpdateProfile)
 
+		// List user's servers
+		protected.GET("/users/me/servers", userHandler.ListUserServers)
+
+		// Create server
+		protected.POST("/servers", userHandler.CreateServer)
+
+		// Chanells routes
+		protected.POST("/servers/:serverId/channels", channelHandler.CreateChannel)
+		protected.GET("/servers/:serverId/channels", channelHandler.ListChannels)
 	}
 
 	// 7. Inicia o Servidor
