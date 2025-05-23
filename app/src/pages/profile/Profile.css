@@ -84,3 +84,31 @@
 .profile-card .close-btn:hover {
     color: var(--color-primary, #4267b2);
 }
+
+.profile-modal {
+    background: rgba(0,0,0,0.7);
+    z-index: 1050;
+}
+
+.profile-card {
+    background: var(--color-background, #fff);
+    color: var(--color-text, #222);
+    min-width: 350px;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    border-radius: 8px;
+}
+
+.profile-card input {
+    background: var(--color-input-bg, #f8fafc);
+    border: 1px solid var(--color-border, #d1d5db);
+    color: var(--color-text, #222);
+}
+
+.profile-card .close-btn {
+    top: 15px;
+    right: 15px;
+    font-size: 1.75rem;
+    color: var(--color-text-secondary, #72767d);
+    line-height: 1;
+}

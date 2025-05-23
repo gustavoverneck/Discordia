@@ -1,159 +1,175 @@
-import React, { useState } from 'react';
-import '../../Global.css';
-import './Dashboard.css';
-import { FaUser, FaCog, FaUserFriends } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import '../../Global.css'; // Certifique-se que o caminho está correto
+import './Dashboard.css';  // Certifique-se que o caminho está correto
+import { FaUser, FaCog, FaUserFriends, FaHome } from 'react-icons/fa';
 
-export default function Dashboard() {
+// Importe seus componentes de view (ajuste os caminhos!)
+import HomeView from './HomeView';
+import FriendsView from '../friends/FriendsView';
+import SettingsView from '../settings/SettingsView';
+import { Profile } from '../profile/Profile';
+
+
+export default function DashboardLayout({ section }) {
+  const navigate = useNavigate(); // Hook para navegação programática
+
+  // Dados de exemplo (mantenha seus dados reais aqui)
   const servers = [
-    { id: 1, name: 'Servidor A' },
-    { id: 2, name: 'Servidor B' },
-    { id: 3, name: 'Servidor C' },
+    { id: 1, name: 'Servidor Alpha', icon: 'A' },
+    { id: 2, name: 'Universo Beta', icon: '🚀' },
+    { id: 3, name: 'Projeto Gamma', icon: 'G' },
   ];
-
   const channels = {
-    1: [{ id: 1, name: '#geral' }, { id: 2, name: '#projetos' }, { id: 3, name: '#off-topic' }],
-    2: [{ id: 4, name: '#news' }, { id: 5, name: '#chat' }],
-    3: [{ id: 6, name: '#random' }],
+    1: [{ id: 1, name: '#geral' }, { id: 2, name: '#anúncios' }],
+    2: [{ id: 4, name: '#jogos' }],
+    3: [{ id: 6, name: '#design' }],
+  };
+  const messagesByChannel = {
+    1: [{ user: 'Alice', text: 'Olá!' }],
   };
 
   const [selectedServerId, setSelectedServerId] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
-  const [view, setView] = useState('home'); // 'home', 'friends', 'profile', 'settings'
+  const [view, setView] = useState('home');
+
+  useEffect(() => {
+  console.log('[DashboardLayout useEffect] Section da URL (prop):', section);
+
+  if (section === 'profile') {
+    setView('profile');
+  } else if (section === 'settings') {
+    setView('settings');
+  } else if (section === 'friends') {
+    setView('friends');
+  } else if (section === 'home') {
+    setView('home');
+  } else if (section) {
+    
+    console.warn(`[DashboardLayout useEffect] Seção da URL desconhecida: '${section}'. Redirecionando para a home do dashboard.`);
+    navigate('/dashboard', { replace: true });
+    setView('home');
+  }
+}, [section, navigate]);
+
+  const navigateToView = (newView, pathSuffix = '') => {
+    setView(newView);
+    setSelectedServerId(null);
+    setSelectedChannelId(null);
+    // Atualiza a URL para refletir a view, se desejado
+    // Isso é opcional e depende de como você quer que as URLs funcionem
+    if (newView === 'home') {
+        navigate('/dashboard');
+    } else if (pathSuffix) {
+        navigate(`/dashboard/${pathSuffix}`);
+    } else {
+        navigate(`/dashboard/${newView}`);
+    }
+  };
+
+  const resetToHome = () => {
+    navigateToView('home', ''); // Navega para /dashboard
+  };
 
   const handleServerClick = (serverId) => {
+    setView('server');
     setSelectedServerId(serverId);
     setSelectedChannelId(null);
-    setView('server');
+    // A URL pode continuar /dashboard ou mudar para /dashboard/servers/{serverId}
+    // Por simplicidade, não mudaremos a URL principal aqui, apenas o estado interno.
   };
 
   const handleChannelClick = (channelId) => {
-    setSelectedChannelId(channelId);
     setView('channel');
+    setSelectedChannelId(channelId);
+    // Similar ao serverClick, a URL principal pode não mudar.
+  };
+
+  const handleDiscordiaIconClick = () => {
+    resetToHome();
   };
 
   const handleFriendsClick = () => {
-    setView('friends');
-    setSelectedServerId(null);
-    setSelectedChannelId(null);
+    navigateToView('friends', 'friends');
   };
 
-  const handleProfileClick = () => {
-    setView('profile');
-    setSelectedServerId(null);
-    setSelectedChannelId(null);
+  const handleProfileButtonClick = () => {
+    navigateToView('profile', 'profile');
   };
 
   const handleSettingsClick = () => {
-    setView('settings');
-    setSelectedServerId(null);
-    setSelectedChannelId(null);
+    navigateToView('settings', 'settings');
   };
-
-  // Exemplo simples de mensagens para cada canal, para ilustrar
-  const messagesByChannel = {
-    1: [{ user: 'Fulano', text: 'Olá, bem-vindo ao Discordia!' }, { user: 'Beltrano', text: 'Bora codar!' }],
-    2: [{ user: 'Ciclano', text: 'Projeto avançando!' }],
-    3: [{ user: 'Fulano', text: 'Off-topic aqui!' }],
-    4: [{ user: 'Outro', text: 'Notícias fresquinhas!' }],
-    5: [{ user: 'Alguém', text: 'Vamos conversar!' }],
-    6: [{ user: 'Random', text: 'Conteúdo aleatório' }],
-  };
-
-  // Exemplo simples lista de amigos
-  const friends = [
-    { id: 1, name: 'Amigo 1' },
-    { id: 2, name: 'Amigo 2' },
-    { id: 3, name: 'Amigo 3' },
-  ];
 
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <h2>Discordia</h2>
-        <nav>
+        <div
+          className="discordia-home-icon server-icon"
+          onClick={handleDiscordiaIconClick}
+          title="Página Inicial"
+        >
+          <FaHome size={24} />
+        </div>
+        <hr className="sidebar-divider" />
+        <nav className="server-list">
           {servers.map((server) => (
             <div
               key={server.id}
-              className={`server ${selectedServerId === server.id ? 'active' : ''}`}
+              className={`server-icon ${selectedServerId === server.id ? 'active' : ''}`}
               onClick={() => handleServerClick(server.id)}
-              style={{ cursor: 'pointer' }}
+              title={server.name}
             >
-              {server.name}
+              {server.iconUrl ? <img src={server.iconUrl} alt={server.name} /> : server.icon}
             </div>
           ))}
         </nav>
-        <hr />
-        <button onClick={handleFriendsClick} title="Amigos">
-          <FaUserFriends size={20} />
-        </button>
-        <div className="profile-settings">
-          <button onClick={handleProfileClick} title="Perfil">
+        <div className="utility-buttons">
+          <button onClick={handleFriendsClick} title="Amigos" className="sidebar-button">
+            <FaUserFriends size={20} />
+          </button>
+          <button onClick={handleProfileButtonClick} title="Perfil" className="sidebar-button">
             <FaUser size={20} />
           </button>
-          <button onClick={handleSettingsClick} title="Configurações">
+          <button onClick={handleSettingsClick} title="Configurações" className="sidebar-button">
             <FaCog size={20} />
           </button>
         </div>
       </aside>
 
-      <main className="main">
-        {view === 'home' && (
-          <div className="home-screen">
-            <h1>Bem-vindo ao Discordia!</h1>
-            <p>Selecione um servidor ou um menu para começar.</p>
+      <main className="main-content">
+        {view === 'home' && <HomeView />}
+        {view === 'friends' && <FriendsView />}
+        {view === 'settings' && <SettingsView />}
+        {view === 'profile' && <Profile />} {/* Componente Profile para a view de perfil */}
+        
+        {selectedServerId && view === 'server' && (
+          <div className="server-content">
+            <aside className="channel-sidebar">
+              <h3>{servers.find((s) => s.id === selectedServerId)?.name}</h3>
+              <ul className="channels-list-items">
+                {channels[selectedServerId]?.map((channel) => (
+                  <li
+                    key={channel.id}
+                    className={`channel-item ${selectedChannelId === channel.id ? 'active' : ''}`}
+                    onClick={() => handleChannelClick(channel.id)}
+                  >
+                    {channel.name}
+                  </li>
+                ))}
+              </ul>
+            </aside>
+            <div className="content-view channel-placeholder">
+              <p>Selecione um canal para ver as mensagens.</p>
+            </div>
           </div>
         )}
-
-        {view === 'friends' && (
-          <div className="friends-list">
-            <h1>Amigos</h1>
-            <ul>
-              {friends.map((friend) => (
-                <li key={friend.id}>{friend.name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {view === 'profile' && (
-          <div className="profile-view">
-            <h1>Perfil do Usuário</h1>
-            {/* Aqui você coloca o conteúdo do perfil */}
-          </div>
-        )}
-
-        {view === 'settings' && (
-          <div className="settings-view">
-            <h1>Configurações</h1>
-            {/* Conteúdo das configurações */}
-          </div>
-        )}
-
-        {view === 'server' && selectedServerId && (
-          <div className="channels-list">
-            <h1>Servidor: {servers.find((s) => s.id === selectedServerId).name}</h1>
-            <ul>
-              {channels[selectedServerId].map((channel) => (
-                <li
-                  key={channel.id}
-                  className={selectedChannelId === channel.id ? 'active' : ''}
-                  onClick={() => handleChannelClick(channel.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {channel.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {view === 'channel' && selectedChannelId && (
-          <div className="channel-chat">
-            <header className="header">
-              <h1>{channels[selectedServerId].find((c) => c.id === selectedChannelId).name}</h1>
+        {selectedChannelId && view === 'channel' && (
+           <div className="content-view channel-chat-view">
+            <header className="chat-header">
+              <h3>{channels[selectedServerId]?.find((c) => c.id === selectedChannelId)?.name}</h3>
             </header>
-
-            <section className="chat">
+            <section className="chat-messages">
               {messagesByChannel[selectedChannelId] && messagesByChannel[selectedChannelId].length > 0 ? (
                 messagesByChannel[selectedChannelId].map((msg, idx) => (
                   <div key={idx} className="message">
@@ -161,12 +177,11 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : (
-                <p>Nenhuma mensagem neste canal.</p>
+                <p className="no-messages">Nenhuma mensagem neste canal.</p>
               )}
             </section>
-
-            <footer className="chat-input">
-              <input type="text" placeholder="Escreva sua mensagem..." />
+            <footer className="chat-input-area">
+              <input type="text" placeholder={`Conversar em ${channels[selectedServerId]?.find((c) => c.id === selectedChannelId)?.name || 'canal'}`} />
               <button>Enviar</button>
             </footer>
           </div>
