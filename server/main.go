@@ -2,12 +2,27 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/gustavoverneck/discordia/server/database"
 	"github.com/gustavoverneck/discordia/server/handlers"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	// CheckOrigin é importante para permitir conexões de diferentes origens (seu frontend React)
+	// Em produção, você deve ter uma lógica mais restritiva aqui.
+	CheckOrigin: func(r *http.Request) bool {
+		// Permitir todas as origens para desenvolvimento
+		// origin := r.Header.Get("Origin")
+		// return origin == "http://localhost:3000" || origin == "tauri://localhost"
+		return true // CUIDADO: Em produção, valide a origem!
+	},
+}
 
 func main() {
 	dbPath := "./discordia.db"
@@ -39,6 +54,10 @@ func main() {
 
 	router.Static("/static", "./uploads")
 
+	router.GET("/ws/chat", func(c *gin.Context) { // Rota GET para iniciar a conexão WS
+		handlers.HandleWebSocketChat(c.Writer, c.Request, userHandler.DB) // Passando o DB se necessário para salvar mensagens
+	})
+
 	// 5. Definição das Rotas Públicas
 	router.POST("/register", userHandler.Register) // Rota para registrar usuário
 	router.POST("/login", userHandler.Login)       // Rota para login de usuário
@@ -59,6 +78,9 @@ func main() {
 		// Chanells routes
 		protected.POST("/servers/:serverId/channels", channelHandler.CreateChannel)
 		protected.GET("/servers/:serverId/channels", channelHandler.ListChannels)
+
+		// Channel Messages
+		protected.GET("/channels/:channelId/messages", channelHandler.ListMessagesInChannel)
 	}
 
 	// 7. Inicia o Servidor

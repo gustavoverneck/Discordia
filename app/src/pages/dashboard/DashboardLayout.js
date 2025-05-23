@@ -1,50 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../../Global.css'; // Ajuste se necessário
-import './Dashboard.css';  // Ajuste se necessário
-import { FaUser, FaCog, FaUserFriends, FaHome, FaPlus, FaVolumeUp } from 'react-icons/fa'; // FaPlus já está aqui
+import '../../Global.css'; 
+import './Dashboard.css';  
+import { FaUser, FaCog, FaUserFriends, FaHome, FaPlus, FaVolumeUp } from 'react-icons/fa';
 
-// Componentes de View (ajuste os caminhos)
-import HomeView from '../dashboard/HomeView';
-import FriendsView from '../friends/FriendsView';
-import SettingsView from '../settings/SettingsView';
-import { Profile } from '../profile/Profile';
-import { CreateChannelModal } from '../../components/CreateChannelModal';
-import CreateServerModal from '../../components/CreateServerModal';
-
+// Componentes de View e Modais (AJUSTE OS CAMINHOS CONFORME SUA ESTRUTURA)
+import HomeView from './HomeView';
+import FriendsView from '../friends/FriendsView'; 
+import SettingsView from '../settings/SettingsView'; 
+import { Profile } from '../profile/Profile'; 
+import { CreateChannelModal } from '../../components/CreateChannelModal'; 
+import CreateServerModal from '../../components/CreateServerModal'; 
 
 export default function DashboardLayout({ section }) {
   const navigate = useNavigate();
 
-  // Estados para servidores
   const [servers, setServers] = useState([]);
   const [serversLoading, setServersLoading] = useState(true);
   const [serversError, setServersError] = useState(null);
 
-  // Estados para canais do servidor selecionado
   const [channels, setChannels] = useState([]);
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [channelsError, setChannelsError] = useState(null);
 
-  // Estados de seleção e view
+  const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState(null);
+  
+  const [newMessage, setNewMessage] = useState('');
+  const socketRef = useRef(null);
+
   const [selectedServerId, setSelectedServerId] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [view, setView] = useState('home');
-
-  // Estados de controle dos modais
+  const [chatError, setChatError] = useState(''); 
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = useState(false);
   const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] = useState(false);
 
-  // Estado do menu de contexto
   const [contextMenu, setContextMenu] = useState({
     visible: false, x: 0, y: 0, serverId: null, serverName: '',
   });
-
-  // Mock data para mensagens (substitua quando implementar o backend para mensagens)
-  const messagesByChannel = {
-    1: [{ user: 'Usuário1', text: 'Bem-vindo ao #geral!' }],
-  };
-
 
   const fetchServers = useCallback(async () => {
     setServersLoading(true);
@@ -111,13 +106,50 @@ export default function DashboardLayout({ section }) {
     }
   }, []);
 
+  const fetchMessagesForChannel = useCallback(async (currentChannelId) => {
+    if (!currentChannelId) {
+      setMessages([]);
+      return;
+    }
+    const currentChannel = channels.find(c => c.ID === currentChannelId);
+    if (!currentChannel || currentChannel.ChannelType !== 'TEXT') {
+      setMessages([]);
+      setMessagesError(currentChannel ? "Este canal não é para mensagens de texto." : null);
+      return;
+    }
+    setMessagesLoading(true);
+    setMessagesError(null);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setMessagesError("Usuário não autenticado para buscar mensagens.");
+      setMessagesLoading(false);
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:5000/channels/${currentChannelId}/messages`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ error: "Resposta de erro não é JSON" }));
+        throw new Error(errData.error || `Erro ao buscar mensagens: ${response.status}`);
+      }
+      const data = await response.json();
+      setMessages(Array.isArray(data) ? data.reverse() : []);
+    } catch (error) {
+      console.error(`Erro ao buscar mensagens para canal ${currentChannelId}:`, error);
+      setMessagesError(error.message || "Não foi possível carregar as mensagens.");
+      setMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [channels]);
 
   useEffect(() => {
     if (section === 'profile') setView('profile');
     else if (section === 'settings') setView('settings');
     else if (section === 'friends') setView('friends');
-    else if (section === 'home') setView('home');
-    else if (section) {
+    else if (section === 'home' || !section) setView('home');
+    else {
       navigate('/dashboard', { replace: true });
       setView('home');
     }
@@ -126,7 +158,7 @@ export default function DashboardLayout({ section }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (contextMenu.visible && event.target.closest('.server-context-menu') === null) {
-        setContextMenu({ ...contextMenu, visible: false });
+        setContextMenu(prev => ({ ...prev, visible: false }));
       }
     };
     if (contextMenu.visible) {
@@ -139,14 +171,75 @@ export default function DashboardLayout({ section }) {
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (view === 'channel' && selectedChannelId) {
+      const currentChannel = channels.find(c => c.ID === selectedChannelId);
+      if (currentChannel && currentChannel.ChannelType === 'TEXT') {
+        fetchMessagesForChannel(selectedChannelId); // Busca histórico
+
+        // Lógica WebSocket
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            console.error("[WebSocket] Token não encontrado para conexão.");
+            return;
+        }
+
+        // Ajuste a URL do WebSocket conforme seu backend (ex: pode incluir o token como query param)
+        const wsUrl = `ws://localhost:5000/ws/chat`; // Endpoint genérico, backend precisará de lógica de subscrição
+        console.log(`[WebSocket] Tentando conectar a: ${wsUrl} para o canal ${selectedChannelId}`);
+        
+        if (socketRef.current) socketRef.current.close(); // Fecha conexão anterior
+        socketRef.current = new WebSocket(wsUrl);
+
+        socketRef.current.onopen = () => {
+          console.log(`[WebSocket] Conectado ao servidor. Inscrevendo-se no canal ${selectedChannelId}`);
+          socketRef.current.send(JSON.stringify({
+            type: 'join_channel',
+            payload: { channelId: selectedChannelId, token: token }
+          }));
+        };
+        socketRef.current.onmessage = (event) => {
+          try {
+            const messageData = JSON.parse(event.data);
+            console.log('[WebSocket] Mensagem recebida:', messageData);
+            // Assumindo que o backend envia a mensagem com 'channelId'
+            // e que o formato de messageData.author e messageData.content está correto.
+            if (messageData.channelId === selectedChannelId) {
+              setMessages((prevMessages) => [...prevMessages, messageData]);
+            }
+          } catch (e) { console.error('[WebSocket] Erro ao parsear mensagem:', e); }
+        };
+        socketRef.current.onerror = (error) => console.error('[WebSocket] Erro:', error);
+        socketRef.current.onclose = (event) => {
+          console.log(`[WebSocket] Desconectado. Code: ${event.code}, Reason: ${event.reason}`);
+          socketRef.current = null; // Limpa a referência
+        };
+        
+        return () => { // Função de limpeza do useEffect
+          if (socketRef.current) {
+            console.log(`[WebSocket] Saindo do canal ${selectedChannelId}, fechando socket.`);
+            socketRef.current.send(JSON.stringify({ type: 'leave_channel', payload: { channelId: selectedChannelId } }));
+            socketRef.current.close();
+            socketRef.current = null;
+          }
+        };
+      } else { // Se não for view de canal de texto ou não houver canal selecionado
+        if (socketRef.current) {
+          socketRef.current.close();
+          socketRef.current = null;
+        }
+        setMessages([]);
+      }
+    }
+  }, [view, selectedChannelId, channels, fetchMessagesForChannel]); // fetchMessagesForChannel é useCallback
+
   const navigateToView = (newView, pathSuffix = '') => {
     setView(newView);
-    // Só reseta server/channel se não for uma navegação para server/channel view
     if (newView !== 'server' && newView !== 'channel') {
-        setSelectedServerId(null);
-        setSelectedChannelId(null);
+      setSelectedServerId(null);
+      setSelectedChannelId(null);
     }
-    if (newView === 'home' || !pathSuffix && (newView !== 'server' && newView !== 'channel')) {
+    if (newView === 'home' || (!pathSuffix && newView !== 'server' && newView !== 'channel')) {
       navigate(newView === 'home' ? '/dashboard' : `/dashboard/${newView}`);
     } else if (pathSuffix && (newView !== 'server' && newView !== 'channel')) {
       navigate(`/dashboard/${pathSuffix}`);
@@ -163,92 +256,131 @@ export default function DashboardLayout({ section }) {
     setView('server');
     setSelectedServerId(serverId);
     setSelectedChannelId(null);
+    setMessages([]);
     fetchChannels(serverId);
   };
 
   const handleChannelClick = (channelId) => {
-    setView('channel');
-    setSelectedChannelId(channelId);
+    const channel = channels.find(c => c.ID === channelId);
+    if (channel) {
+      if (channel.ChannelType === 'TEXT') {
+        setView('channel');
+        setSelectedChannelId(channelId);
+      } else if (channel.ChannelType === 'VOICE') {
+        alert(`Canal de voz: ${channel.ChannelName} (funcionalidade de voz não implementada)`);
+        // Poderia manter a view 'server' e apenas destacar o canal de voz selecionado
+        // setView('server'); 
+        setSelectedChannelId(channelId); // Ainda seleciona para destacar na UI
+        setMessages([]);
+      }
+    }
   };
 
   const openCreateServerModal = () => setIsCreateServerModalOpen(true);
   const closeCreateServerModal = () => setIsCreateServerModalOpen(false);
-  const handleServerCreated = (newServer) => {
-    fetchServers();
-    closeCreateServerModal();
-    // Opcional: selecionar o novo servidor
-    // handleServerClick(newServer.id); 
-  };
+  const handleServerCreated = (newServer) => { fetchServers(); closeCreateServerModal(); };
 
   const openCreateChannelModal = () => setIsCreateChannelModalOpen(true);
   const closeCreateChannelModal = () => setIsCreateChannelModalOpen(false);
-  const handleChannelCreated = (newChannel) => {
-    if (selectedServerId) { // Garante que temos um serverId para buscar os canais
-      fetchChannels(selectedServerId);
+  const handleChannelCreated = (newChannel) => { if (selectedServerId) { fetchChannels(selectedServerId); } closeCreateChannelModal(); };
+
+  const handleServerRightClick = (event, serverId, serverName) => { event.preventDefault(); setContextMenu({ visible: true, x: event.pageX, y: event.pageY, serverId, serverName }); };
+  
+  const handleLeaveServer = async () => {
+    if (!contextMenu.serverId) return;
+    const serverIdToLeave = contextMenu.serverId;
+    const serverName = contextMenu.serverName;
+    const currentSelectedServer = selectedServerId;
+    setContextMenu({ ...contextMenu, visible: false });
+    const token = localStorage.getItem('authToken');
+    if (!token) { alert('Autenticação necessária.'); return; }
+    try {
+      const response = await fetch(`http://localhost:5000/servers/${serverIdToLeave}/members/me`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Falha ao deixar o servidor: ${response.statusText}`);
+      }
+      alert(`Você deixou o servidor "${serverName}" com sucesso.`);
+      fetchServers();
+      if (currentSelectedServer === serverIdToLeave) { resetToHome(); }
+    } catch (error) { console.error("Erro ao deixar o servidor:", error); alert(`Erro: ${error.message}`); }
+  };
+
+  const handleSendMessage = async (event) => {
+    event.preventDefault(); // Impede o comportamento padrão do formulário
+    console.log('[handleSendMessage] Formulário submetido.'); // LOG A
+    setChatError(''); // Limpa erros anteriores do chat
+
+    if (!newMessage.trim()) {
+      console.warn('[handleSendMessage] Mensagem está vazia ou contém apenas espaços. Não enviando.'); // LOG B1
+      // Opcional: setChatError("A mensagem não pode estar vazia.");
+      return;
     }
-    // Ou atualização otimista: setChannels(prev => [...prev, newChannel]);
-    closeCreateChannelModal();
+    if (!selectedChannelId) {
+      console.warn('[handleSendMessage] Nenhum canal selecionado para enviar mensagem.'); // LOG B2
+      setChatError("Nenhum canal selecionado para enviar a mensagem.");
+      return;
+    }
+
+    console.log('[handleSendMessage] Verificando socketRef.current:', socketRef.current); // LOG C
+    if (!socketRef.current) {
+      console.warn('[handleSendMessage] socketRef.current é nulo. Conexão WebSocket não existe.'); // LOG D1
+      setChatError('Não conectado ao chat. Por favor, tente selecionar o canal novamente.');
+      return;
+    }
+
+    console.log('[handleSendMessage] Estado do socket (readyState):', socketRef.current.readyState, '(0:CONNECTING, 1:OPEN, 2:CLOSING, 3:CLOSED)'); // LOG E
+    if (socketRef.current.readyState !== WebSocket.OPEN) { // WebSocket.OPEN é 1
+      console.warn(`[handleSendMessage] Conexão WebSocket não está ABERTA (OPEN). Estado atual: ${socketRef.current.readyState}`); // LOG D2
+      setChatError(`Não é possível enviar mensagem. Conexão com o chat não está pronta (Estado: ${socketRef.current.readyState}).`);
+      return;
+    }
+
+    const messagePayload = {
+      type: 'new_message', // Para o backend identificar a ação
+      payload: {
+        channelId: selectedChannelId,
+        content: newMessage.trim(),
+        // O backend deverá associar o authorId com base no token da conexão WebSocket
+      }
+    };
+
+    console.log('[handleSendMessage] Preparando para enviar via WebSocket:', messagePayload); // LOG F
+
+    try {
+      socketRef.current.send(JSON.stringify(messagePayload));
+      console.log('[handleSendMessage] Mensagem ENVIADA via WebSocket com sucesso.'); // LOG G
+      setNewMessage(''); // Limpa o input APÓS o envio (ou tentativa de envio bem-sucedida)
+    } catch (sendError) {
+      console.error('[handleSendMessage] ERRO ao tentar enviar mensagem via WebSocket:', sendError); // LOG H
+      setChatError('Falha ao enviar a mensagem. Verifique sua conexão ou tente novamente.');
+      // Não limpa newMessage aqui para que o usuário não perca o que digitou.
+    }
   };
-
-  const handleServerRightClick = (event, serverId, serverName) => {
-    event.preventDefault();
-    setContextMenu({ visible: true, x: event.pageX, y: event.pageY, serverId, serverName });
-  };
-
-  const handleLeaveServer = async () => { /* ... sua função handleLeaveServer ... */ };
-
 
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <div
-          className="discordia-home-icon server-icon"
-          onClick={handleHomeIconClick}
-          title="Página Inicial"
-        >
-          <FaHome size={24} />
-        </div>
+        <div className="discordia-home-icon server-icon" onClick={handleHomeIconClick} title="Página Inicial" > <FaHome size={24} /> </div>
         <hr className="sidebar-divider" />
         <nav className="server-list">
           {serversLoading && <p style={{color: 'white', fontSize: '0.8em', textAlign: 'center'}}>Carregando...</p>}
           {serversError && <p style={{color: 'red', fontSize: '0.8em', padding: '0 5px', textAlign: 'center'}}>{serversError}</p>}
-          {!serversLoading && !serversError && Array.isArray(servers) && servers.length === 0 && (
-            <p style={{color: '#8e9297', fontSize: '0.8em', textAlign: 'center', padding: '10px'}}>Nenhum servidor<br/>ainda.</p>
-          )}
+          {!serversLoading && !serversError && Array.isArray(servers) && servers.length === 0 && ( <p style={{color: '#8e9297', fontSize: '0.8em', textAlign: 'center', padding: '10px'}}>Nenhum servidor<br/>ainda.</p> )}
           {!serversLoading && !serversError && Array.isArray(servers) && servers.map((server) => (
-            <div
-              key={server.id}
-              className={`server-icon ${selectedServerId === server.id ? 'active' : ''}`}
-              onClick={() => handleServerClick(server.id)}
-              onContextMenu={(e) => handleServerRightClick(e, server.id, server.name)}
-              title={server.name}
-            >
-              {server.iconUrl ? (
-                <img src={`http://localhost:5000${server.iconUrl}`} alt={server.name} />
-              ) : (
-                server.name ? server.name.charAt(0).toUpperCase() : 'S'
-              )}
+            <div key={server.id} className={`server-icon ${selectedServerId === server.id ? 'active' : ''}`} onClick={() => handleServerClick(server.id)} onContextMenu={(e) => handleServerRightClick(e, server.id, server.name)} title={server.name} >
+              {server.iconUrl ? (<img src={`http://localhost:5000${server.iconUrl}`} alt={server.name} />) : (server.name ? server.name.charAt(0).toUpperCase() : 'S')}
             </div>
           ))}
-          <div
-            className="server-icon add-server-button"
-            onClick={openCreateServerModal}
-            title="Adicionar um Servidor"
-          >
-            <FaPlus size={20} />
-          </div>
+          <div className="server-icon add-server-button" onClick={openCreateServerModal} title="Adicionar um Servidor" > <FaPlus size={20} /> </div>
         </nav>
         <hr className="sidebar-divider" />
         <div className="utility-buttons">
-          <button onClick={handleFriendsClick} title="Amigos" className="sidebar-button">
-            <FaUserFriends size={20} />
-          </button>
-          <button onClick={handleProfileButtonClick} title="Perfil" className="sidebar-button">
-            <FaUser size={20} />
-          </button>
-          <button onClick={handleSettingsClick} title="Configurações" className="sidebar-button">
-            <FaCog size={20} />
-          </button>
+          <button onClick={handleFriendsClick} title="Amigos" className="sidebar-button"><FaUserFriends size={20} /></button>
+          <button onClick={handleProfileButtonClick} title="Perfil" className="sidebar-button"><FaUser size={20} /></button>
+          <button onClick={handleSettingsClick} title="Configurações" className="sidebar-button"><FaCog size={20} /></button>
         </div>
       </aside>
 
@@ -263,74 +395,85 @@ export default function DashboardLayout({ section }) {
             <aside className="channel-sidebar">
               <div className="channel-sidebar-header">
                 <h3>{servers.find((s) => s.id === selectedServerId)?.name}</h3>
-                <button onClick={openCreateChannelModal} className="add-channel-button" title="Criar Canal">
-                  <FaPlus size={16}/>
-                </button>
+                <button onClick={openCreateChannelModal} className="add-channel-button" title="Criar Canal"> <FaPlus size={16}/> </button>
               </div>
               {channelsLoading && <p className="loading-text" style={{padding: '10px', textAlign:'center', fontSize: '0.8em'}}>Carregando canais...</p>}
               {channelsError && <p className="error-text" style={{padding: '10px', color: 'red', textAlign:'center', fontSize: '0.8em'}}>{channelsError}</p>}
-              {!channelsLoading && !channelsError && (
+              {!channelsLoading && !channelsError && Array.isArray(channels) && (
                 <ul className="channels-list-items">
-                  {channels.filter(c => c.ChannelType === 'TEXT').length > 0 && (
-                    <li className="channel-category">CANAIS DE TEXTO</li>
-                  )}
+                  {channels.filter(c => c.ChannelType === 'TEXT').length > 0 && (<li className="channel-category">CANAIS DE TEXTO</li>)}
                   {channels.filter(c => c.ChannelType === 'TEXT').map((channel) => (
-                    <li
-                      key={channel.ID}
-                      className={`channel-item text-channel ${selectedChannelId === channel.ID ? 'active' : ''}`}
-                      onClick={() => handleChannelClick(channel.ID)}
-                    >
-                      <span className="channel-icon"></span>{channel.ChannelName}
+                    <li key={channel.ID} className={`channel-item text-channel ${selectedChannelId === channel.ID ? 'active' : ''}`} onClick={() => handleChannelClick(channel.ID)}>
+                      <span className="channel-icon">#</span>{channel.ChannelName}
                     </li>
                   ))}
-                  {channels.filter(c => c.ChannelType === 'VOICE').length > 0 && (
-                    <li className="channel-category">CANAIS DE VOZ</li>
-                  )}
+                  {channels.filter(c => c.ChannelType === 'VOICE').length > 0 && (<li className="channel-category">CANAIS DE VOZ</li>)}
                   {channels.filter(c => c.ChannelType === 'VOICE').map((channel) => (
-                    <li
-                      key={channel.ID}
-                      className={`channel-item voice-channel ${selectedChannelId === channel.ID ? 'active' : ''}`}
-                      onClick={() => handleChannelClick(channel.ID)}
-                    >
+                    <li key={channel.ID} className={`channel-item voice-channel ${selectedChannelId === channel.ID ? 'active' : ''}`} onClick={() => handleChannelClick(channel.ID)}>
                        <FaVolumeUp className="channel-icon" /> {channel.ChannelName}
                     </li>
                   ))}
-                   {!channelsLoading && !channelsError && channels.length === 0 && (
-                     <li className="no-channels-message" style={{padding: '10px', color: '#8e9297', fontSize: '0.9em'}}>Nenhum canal criado.</li>
-                   )}
+                   {!channelsLoading && !channelsError && channels.length === 0 && (<li className="no-channels-message" style={{padding: '10px', color: '#8e9297', fontSize: '0.9em'}}>Nenhum canal criado.</li>)}
                 </ul>
               )}
             </aside>
             
-            {view === 'server' && !selectedChannelId && (
-                 <div className="content-view channel-placeholder"><p>Selecione um canal para começar a conversar!</p></div>
-            )}
+            {view === 'server' && !selectedChannelId && ( <div className="content-view channel-placeholder"><p>Selecione um canal para começar a conversar!</p></div> )}
+            
             {view === 'channel' && selectedChannelId && (
                 <div className="content-view channel-chat-view">
                      <header className="chat-header">
-                        <h3>
-                            {/* No backend, o CanalModel tem ChannelName e ChannelType, ID.  */}
-                            {/* A API /servers/:serverId/channels retorna []models.Channel */}
-                            {channels.find(c => c.ID === selectedChannelId)?.ChannelName}
-                        </h3>
+                        <h3> {channels.find(c => c.ID === selectedChannelId)?.ChannelName} </h3>
                      </header>
                      <section className="chat-messages">
-                        {messagesByChannel[selectedChannelId] && messagesByChannel[selectedChannelId].length > 0 ? (
-                            messagesByChannel[selectedChannelId].map((msg, idx) => (
-                            <div key={idx} className="message">
-                                <strong>{msg.user}:</strong> {msg.text}
+                        {messagesLoading && <p className="loading-text">Carregando mensagens...</p>}
+                        {messagesError && <p className="error-text">{messagesError}</p>}
+                        {!messagesLoading && !messagesError && Array.isArray(messages) && messages.length > 0 ? (
+                            messages.map((msg) => ( // msg é o MessageResponse do backend
+                            <div key={msg.id} className="message">
+                                <div className="message-author-avatar">
+                                   {msg.author && msg.author.avatarUrl ? (
+                                      <img
+                                        src={
+                                          msg.author.avatarUrl.startsWith('http')
+                                            ? msg.author.avatarUrl
+                                            : `http://localhost:5000${msg.author.avatarUrl}` // Adiciona base URL se for caminho relativo
+                                        }
+                                        alt={msg.author.username} // Alt text descritivo
+                                      />
+                                    ) : (
+                                      <div className="avatar-placeholder">
+                                        {msg.author && msg.author.username
+                                          ? msg.author.username.charAt(0).toUpperCase()
+                                          : '?'}
+                                      </div>
+                                    )}
+                                </div>
+                                <div className="message-content">
+                                <div className="message-header">
+                                    <strong className="message-author-name">{msg.author.username}</strong>
+                                    <span className="message-timestamp">
+                                    {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                                <div className="message-text">{msg.content}</div>
+                                </div>
                             </div>
                             ))
                         ) : (
-                            <p className="no-messages">Nenhuma mensagem neste canal ainda. Seja o primeiro!</p>
+                            !messagesLoading && !messagesError && <p className="no-messages">Nenhuma mensagem neste canal ainda. Seja o primeiro!</p>
                         )}
                         </section>
                         <footer className="chat-input-area">
-                        <input 
-                            type="text" 
-                            placeholder={`Conversar em #${channels.find(c => c.ID === selectedChannelId)?.ChannelName || 'canal'}`} 
-                        />
-                        <button>Enviar</button>
+                          <form className="chat-input-area_form" onSubmit={handleSendMessage}>
+                            <input 
+                              type="text" 
+                              placeholder={`Conversar em #${channels.find(c => c.ID === selectedChannelId)?.ChannelName || 'canal'}`} 
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                            />
+                            <button type="submit">Enviar</button>
+                          </form>
                         </footer>
                 </div>
             )}
@@ -338,25 +481,14 @@ export default function DashboardLayout({ section }) {
         )}
       </main>
 
-      {isCreateServerModalOpen && (
-        <CreateServerModal
-          onClose={closeCreateServerModal}
-          onServerCreated={handleServerCreated}
-        />
-      )}
-      {isCreateChannelModalOpen && selectedServerId && (
-        <CreateChannelModal
-          serverId={selectedServerId}
-          onClose={closeCreateChannelModal}
-          onChannelCreated={handleChannelCreated}
-        />
-      )}
-
-      {contextMenu.visible && (
-        <div
-          className="server-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()} 
+      {isCreateServerModalOpen && ( <CreateServerModal onClose={closeCreateServerModal} onServerCreated={handleServerCreated} /> )}
+      {isCreateChannelModalOpen && selectedServerId && ( <CreateChannelModal serverId={selectedServerId} onClose={closeCreateChannelModal} onChannelCreated={handleChannelCreated} /> )}
+      
+      {contextMenu.visible && ( 
+        <div 
+          className="server-context-menu" 
+          style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
         >
           <ul>
             <li onClick={handleLeaveServer} className="context-menu-option leave-option">Deixar Servidor</li>
