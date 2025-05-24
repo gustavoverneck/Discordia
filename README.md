@@ -13,7 +13,7 @@ TO install
 yarn install
 ```
 
-
+To run
 ```bash
 yarn tauri dev
 ```
