@@ -8,7 +8,7 @@ go run main.go
 ```
 
 ### App
-TO install
+To install
 ```bash
 yarn install
 ```
